@@ -85,6 +85,7 @@ class StateManager {
     this.onObjectAnnotationSave = this.onObjectAnnotationSave.bind(this);
     this.startLabelPropagation = this.startLabelPropagation.bind(this);
     this.labelPropagationReturn = this.labelPropagationReturn.bind(this);
+    this.saveAnnotations = this.saveAnnotations.bind(this);
 
     // set turk related params
     const urlParams = new URLSearchParams(window.location.search);
@@ -127,6 +128,8 @@ class StateManager {
       objects: false,
       pose: false,
     }
+    this.frameCount = 0
+    this.categories = new Set()
   }
 
   setDefaultUrl() {
@@ -451,20 +454,27 @@ class StateManager {
   }
 
   startLabelPropagation() {
-    let props = {
+    let prevObjects = this.prevFeedState.objects.filter(o => o.type === "annotate")
+    for (let i in prevObjects) {
+      this.categories.add(prevObjects[i].label)
+    }
+    let labelProps = {
       prevRgbImg: this.prevFeedState.rgbImg, 
       depth: this.curFeedState.depth, 
       prevDepth: this.prevFeedState.depth, 
-      prevObjects: this.prevFeedState.objects.filter(o => o.type === "annotate"), 
+      prevObjects, 
       basePose: this.curFeedState.pose,
       prevBasePose: this.prevFeedState.pose,
+      frameCount: this.frameCount,
+      categories: [null, ...this.categories], // Include null so category indices start at 1
     }
-    this.socket.emit("label_propagation", props)
+    this.socket.emit("label_propagation", labelProps)
     // Reset
     this.stateProcessed.rgbImg = true;
     this.stateProcessed.depth = true;
     this.stateProcessed.objects = true;
     this.stateProcessed.pose = true;
+    this.frameCount++
   }
 
   labelPropagationReturn(res) {
@@ -503,6 +513,11 @@ class StateManager {
       !this.stateProcessed.objects && 
       !this.stateProcessed.pose  
     )
+  }
+
+  saveAnnotations() {
+    let categories = [null, ...this.categories] // Include null so category indices start at 1
+    this.socket.emit("save_annotations", categories)
   }
 
   processMemoryState(msg) {
