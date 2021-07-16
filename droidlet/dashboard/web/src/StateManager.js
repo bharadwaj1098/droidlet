@@ -520,6 +520,10 @@ class StateManager {
     this.socket.emit("save_annotations", categories)
   }
 
+  retrainDetector() {
+    this.socket.emit("retrain_detector")
+  }
+
   processMemoryState(msg) {
     this.refs.forEach((ref) => {
       if (ref instanceof MemoryList) {
